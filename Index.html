@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Minecraft Clone - Trees & Building</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #87CEEB; }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 10px; height: 10px; margin: -5px;
+            border: 2px solid white; border-radius: 50%; pointer-events: none;
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px;
+            color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px;
+        }
+        #hotbar {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;
+        }
+        .slot {
+            width: 40px; height: 40px; border: 2px solid #fff;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; cursor: pointer;
+        }
+        .active { border-color: yellow; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="crosshair"></div>
+    <div id="ui">
+        <b>Controls:</b> Click = Lock Mouse / Break Block | Right Click = Place Block | 1-4 = Select Item
+    </div>
+    
+    <!-- Hotbar for Building -->
+    <div id="hotbar">
+        <div class="slot active" id="s1">Dirt</div>
+        <div class="slot" id="s2">Wood</div>
+        <div class="slot" id="s3">Leaves</div>
+        <div class="slot" id="s4">Stone</div>
+    </div>
+
+    <script>
+        // Setup Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        const light = new THREE.DirectionalLight(0xffffff, 0.9);
+        light.position.set(20, 40, 20);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+        // Block Materials
+        const geo = new THREE.BoxGeometry(1, 1, 1);
+        const mats = {
+            grass: new THREE.MeshLambertMaterial({ color: 0x557a2b }),
+            dirt: new THREE.MeshLambertMaterial({ color: 0x8b5a2b }),
+            wood: new THREE.MeshLambertMaterial({ color: 0x5c4033 }),
+            leaves: new THREE.MeshLambertMaterial({ color: 0x2e8b57 }),
+            stone: new THREE.MeshLambertMaterial({ color: 0x808080 })
+        };
+
+        const blocks = [];
+
+        function createBlock(x, y, z, type) {
+            const mesh = new THREE.Mesh(geo, mats[type]);
+            mesh.position.set(x, y, z);
+            mesh.userData = { type: type };
+            scene.add(mesh);
+            blocks.push(mesh);
+            return mesh;
+        }
+
+        // Generate World Ground
+        for (let x = -10; x <= 10; x++) {
+            for (let z = -10; z <= 10; z++) {
+                createBlock(x, 0, z, 'grass');
+                createBlock(x, -1, z, 'dirt');
+            }
+        }
+
+        // Function to Spawn Voxel Tree
+        function spawnTree(x, z) {
+            for (let y = 1; y <= 3; y++) createBlock(x, y, z, 'wood'); // Trunk
+            for (let lx = -1; lx <= 1; lx++) {
+                for (let lz = -1; lz <= 1; lz++) {
+                    for (let ly = 3; ly <= 4; ly++) {
+                        if (lx === 0 && lz === 0 && ly === 3) continue;
+                        createBlock(x + lx, ly, z + lz, 'leaves'); // Leaves
+                    }
+                }
+            }
+        }
+
+        // Spawn Trees
+        spawnTree(3, 3);
+        spawnTree(-4, 5);
+        spawnTree(6, -4);
+        spawnTree(-5, -5);
+
+        // Player Setup
+        camera.position.set(0, 2, 5);
+        let currentType = 'dirt';
+
+        // Select Hotbar item
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') currentType = 'dirt';
+            if (e.key === '2') currentType = 'wood';
+            if (e.key === '3') currentType = 'leaves';
+            if (e.key === '4') currentType = 'stone';
+        });
+
+        // Raycasting for Mining & Building
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2(0, 0);
+
+        document.addEventListener('pointerdown', (e) => {
+            if (document.pointerLockElement !== document.body) {
+                document.body.requestPointerLock();
+                return;
+            }
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(blocks);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                if (e.button === 0) { // Left Click: Break Block
+                    scene.remove(hit.object);
+                    blocks.splice(blocks.indexOf(hit.object), 1);
+                } else if (e.button === 2) { // Right Click: Place Block (Ghar banao)
+                    const pos = hit.point.add(hit.face.normal.clone().multiplyScalar(0.5)).floor().addScalar(0.5);
+                    createBlock(pos.x, pos.y, pos.z, currentType);
+                }
+            }
+        });
+
+        // Basic Camera Rotation
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === document.body) {
+                camera.rotation.y -= e.movementX * 0.002;
+                camera.rotation.x -= e.movementY * 0.002;
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
