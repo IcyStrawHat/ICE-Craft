@@ -1,66 +1,786 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Minecraft Clone - Trees & Building</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bird's Adventure</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #87CEEB; }
-        #crosshair {
-            position: absolute; top: 50%; left: 50%;
-            width: 10px; height: 10px; margin: -5px;
-            border: 2px solid white; border-radius: 50%; pointer-events: none;
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            touch-action: manipulation;
         }
-        #ui {
-            position: absolute; top: 10px; left: 10px;
-            color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px;
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        #hotbar {
-            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            max-height: 800px;
+            background-color: #000;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
         }
-        .slot {
-            width: 40px; height: 40px; border: 2px solid #fff;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; cursor: pointer;
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
-        .active { border-color: yellow; }
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.75);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 10;
+            padding: 20px;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        h1 {
+            color: #fff;
+            font-size: 32px;
+            margin-bottom: 20px;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        h2 {
+            color: #f1c40f;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        .btn {
+            background: linear-gradient(180deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 8px 0;
+            width: 200px;
+            box-shadow: 0 4px 0 #1e8449;
+            transition: transform 0.1s;
+            text-align: center;
+        }
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #1e8449;
+        }
+        .btn-blue {
+            background: linear-gradient(180deg, #3498db, #2980b9);
+            box-shadow: 0 4px 0 #1f618d;
+        }
+        .btn-blue:active { box-shadow: 0 1px 0 #1f618d; }
+        .btn-red {
+            background: linear-gradient(180deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 0 #962d22;
+        }
+        .btn-red:active { box-shadow: 0 1px 0 #962d22; }
+        .hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .hud-item {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .pause-btn {
+            background: rgba(0,0,0,0.5);
+            border: 2px solid white;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            max-height: 380px;
+            overflow-y: auto;
+            width: 100%;
+            padding: 10px;
+            pointer-events: auto;
+        }
+        .card {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            cursor: pointer;
+        }
+        .card.selected { border-color: #f1c40f; background: rgba(241,196,15,0.2); }
+        .card.locked { opacity: 0.6; }
+        .card-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+        .card-subtitle { font-size: 11px; color: #ddd; margin-bottom: 8px; }
+        .controls-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            z-index: 4;
+            pointer-events: auto;
+        }
+        .control-zone { flex: 1; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <div id="crosshair"></div>
-    <div id="ui">
-        <b>Controls:</b> Click = Lock Mouse / Break Block | Right Click = Place Block | 1-4 = Select Item
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hud" style="display:none;">
+        <div class="hud-item" id="hud-hearts">❤️ 3</div>
+        <div class="hud-item" id="hud-score">0</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <div class="hud-item" id="hud-coins">🪙 0</div>
+            <div class="pause-btn" id="btn-pause">||</div>
+        </div>
     </div>
+
+    <!-- TOUCH CONTROLS -->
+    <div id="touch-controls" class="controls-overlay" style="display:none;">
+        <div class="control-zone" id="touch-left"></div>
+        <div class="control-zone" id="touch-right"></div>
+    </div>
+
+    <!-- MAIN MENU -->
+    <div id="screen-menu" class="screen active">
+        <h1>Bird's Adventure</h1>
+        <button class="btn" id="btn-play">PLAY</button>
+        <button class="btn btn-blue" id="btn-birds">BIRDS</button>
+        <button class="btn btn-blue" id="btn-maps">MAPS</button>
+        <button class="btn btn-blue" id="btn-highscore">HIGH SCORE</button>
+    </div>
+
+    <!-- BIRDS SHOP -->
+    <div id="screen-birds" class="screen">
+        <h2>Select Bird</h2>
+        <div class="hud-item" id="shop-coins" style="margin-bottom:10px;">🪙 0</div>
+        <div class="grid-container" id="birds-grid"></div>
+        <button class="btn btn-red" id="btn-birds-back" style="margin-top:15px;">BACK</button>
+    </div>
+
+    <!-- MAPS MENU -->
+    <div id="screen-maps" class="screen">
+        <h2>Select Map</h2>
+        <div class="grid-container" id="maps-grid"></div>
+        <button class="btn btn-red" id="btn-maps-back" style="margin-top:15px;">BACK</button>
+    </div>
+
+    <!-- HIGH SCORE -->
+    <div id="screen-highscore" class="screen">
+        <h2>High Score</h2>
+        <h1 id="highscore-val" style="color:#f1c40f; font-size:48px;">0</h1>
+        <button class="btn btn-red" id="btn-highscore-back">BACK</button>
+    </div>
+
+    <!-- PAUSE -->
+    <div id="screen-pause" class="screen">
+        <h2>PAUSED</h2>
+        <button class="btn" id="btn-continue">CONTINUE</button>
+        <button class="btn btn-red" id="btn-pause-menu">MAIN MENU</button>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="screen-gameover" class="screen">
+        <h2>GAME OVER</h2>
+        <p style="color:white; font-size:18px; margin-bottom:5px;">Score: <span id="go-score">0</span></p>
+        <p style="color:#f1c40f; font-size:16px; margin-bottom:20px;">Best: <span id="go-best">0</span></p>
+        <button class="btn" id="btn-restart">PLAY AGAIN</button>
+        <button class="btn btn-red" id="btn-go-menu">MAIN MENU</button>
+    </div>
+</div>
+
+<script>
+/* ==========================================================================
+   AUDIO SYSTEM (Web Audio API Synthesizer)
+   ========================================================================== */
+const AudioSys = {
+    ctx: null,
+    init() {
+        try {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        } catch(e){}
+    },
+    play(type) {
+        if(!this.ctx) return;
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        if(type === 'jump') {
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if(type === 'coin') {
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.setValueAtTime(800, now + 0.05);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now); osc.stop(now + 0.15);
+        } else if(type === 'hurt') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.linearRampToValueAtTime(60, now + 0.2);
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+        } else if(type === 'click') {
+            osc.frequency.setValueAtTime(400, now);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now); osc.stop(now + 0.05);
+        }
+    }
+};
+
+/* ==========================================================================
+   GAME DATA & CONFIG
+   ========================================================================== */
+const BIRDS = [
+    { id: 'red', name: 'Red Robin', cost: 0, hearts: 3, color: '#e74c3c' },
+    { id: 'blue', name: 'Blue Jay', cost: 50, hearts: 3, color: '#3498db' },
+    { id: 'yellow', name: 'Canary', cost: 100, hearts: 4, color: '#f1c40f' },
+    { id: 'green', name: 'Parrot', cost: 150, hearts: 4, color: '#2ecc71' },
+    { id: 'purple', name: 'Phoenix', cost: 250, hearts: 5, color: '#9b59b6' },
+    { id: 'eagle', name: 'Golden Eagle', cost: 400, hearts: 5, color: '#e67e22' }
+];
+
+const MAPS = [
+    { id: 'day', name: 'Normal Day', cost: 0, bg: '#70c5ce', plat: '#2ecc71', spike: '#e74c3c' },
+    { id: 'night', name: 'Normal Night', cost: 0, bg: '#1a252f', plat: '#34495e', spike: '#e74c3c' },
+    { id: 'snow', name: 'Snow Valley', cost: 200, bg: '#d5dbdb', plat: '#ecf0f1', spike: '#e74c3c' }
+];
+
+let state = 'MENU';
+let coins = 0;
+let highScore = 0;
+let selectedBird = 'red';
+let selectedMap = 'day';
+let unlockedBirds = ['red'];
+let unlockedMaps = ['day', 'night'];
+
+/* ==========================================================================
+   STORAGE SYSTEM
+   ========================================================================== */
+function loadData() {
+    try {
+        coins = parseInt(localStorage.getItem('ba_coins')) || 0;
+        highScore = parseInt(localStorage.getItem('ba_highscore')) || 0;
+        selectedBird = localStorage.getItem('ba_bird') || 'red';
+        selectedMap = localStorage.getItem('ba_map') || 'day';
+        unlockedBirds = JSON.parse(localStorage.getItem('ba_ubirds')) || ['red'];
+        unlockedMaps = JSON.parse(localStorage.getItem('ba_umaps')) || ['day', 'night'];
+    } catch(e){}
+}
+
+function saveData() {
+    try {
+        localStorage.setItem('ba_coins', coins);
+        localStorage.setItem('ba_highscore', highScore);
+        localStorage.setItem('ba_bird', selectedBird);
+        localStorage.setItem('ba_map', selectedMap);
+        localStorage.setItem('ba_ubirds', JSON.stringify(unlockedBirds));
+        localStorage.setItem('ba_umaps', JSON.stringify(unlockedMaps));
+    } catch(e){}
+}
+
+/* ==========================================================================
+   GAME ENGINE & VARIABLES
+   ========================================================================== */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W = 360, H = 640;
+
+let player = {};
+let platforms = [];
+let coinsList = [];
+let particles = [];
+let cameraY = 0;
+let score = 0;
+let keys = { left: false, right: false };
+
+function resize() {
+    const container = document.getElementById('game-container');
+    W = container.clientWidth;
+    H = container.clientHeight;
+    canvas.width = W;
+    canvas.height = H;
+}
+window.addEventListener('resize', resize);
+
+/* ==========================================================================
+   PROCEDURAL GENERATION
+   ========================================================================== */
+let lastPlatY = 0;
+
+function initGame() {
+    const bData = BIRDS.find(b => b.id === selectedBird);
+    player = {
+        x: W / 2 - 12,
+        y: H - 150,
+        w: 24,
+        h: 24,
+        vx: 0,
+        vy: 0,
+        maxHearts: bData.hearts,
+        hearts: bData.hearts,
+        invuln: 0
+    };
+
+    score = 0;
+    cameraY = 0;
+    platforms = [];
+    coinsList = [];
+    particles = [];
+
+    // Safe base platform
+    platforms.push({ x: W/2 - 60, y: H - 80, w: 120, h: 16, spike: false });
+    lastPlatY = H - 80;
+
+    // Generate initial platforms
+    for(let i=0; i<15; i++) {
+        spawnPlatform();
+    }
+}
+
+function spawnPlatform() {
+    const distY = 65 + Math.random() * 25;
+    lastPlatY -= distY;
+    const width = Math.max(60, 110 - Math.min(score, 200) * 0.2);
+    const x = Math.random() * (W - width);
     
-    <!-- Hotbar for Building -->
-    <div id="hotbar">
-        <div class="slot active" id="s1">Dirt</div>
-        <div class="slot" id="s2">Wood</div>
-        <div class="slot" id="s3">Leaves</div>
-        <div class="slot" id="s4">Stone</div>
-    </div>
+    // Fair spike generation
+    let isSpike = false;
+    if(score > 5 && Math.random() < 0.25) {
+        isSpike = true;
+    }
 
-    <script>
-        // Setup Scene
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+    platforms.push({ x: x, y: lastPlatY, w: width, h: 16, spike: isSpike });
 
-        // Lights
-        const light = new THREE.DirectionalLight(0xffffff, 0.9);
-        light.position.set(20, 40, 20);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    // Spawn Coin
+    if(!isSpike && Math.random() < 0.4) {
+        coinsList.push({ x: x + width/2 - 8, y: lastPlatY - 25, w: 16, h: 16, taken: false });
+    }
+}
 
-        // Block Materials
-        const geo = new THREE.BoxGeometry(1, 1, 1);
-        const mats = {
-            grass: new THREE.MeshLambertMaterial({ color: 0x557a2b }),
-            dirt: new THREE.MeshLambertMaterial({ color: 0x8b5a2b }),
-            wood: new THREE.MeshLambertMaterial({ color: 0x5c4033 }),
+function cleanupWorld() {
+    // Keep active array small
+    const limitY = cameraY + H + 100;
+    platforms = platforms.filter(p => p.y < limitY);
+    coinsList = coinsList.filter(c => c.y < limitY);
+    particles = particles.filter(pt => pt.life > 0);
+
+    while(platforms.length < 15) {
+        spawnPlatform();
+    }
+}
+
+/* ==========================================================================
+   PHYSICS & UPDATES
+   ========================================================================== */
+function update() {
+    if(state !== 'PLAYING') return;
+
+    // Horizontal Movement
+    if(keys.left) player.vx = -4.5;
+    else if(keys.right) player.vx = 4.5;
+    else player.vx *= 0.8;
+
+    player.x += player.vx;
+
+    // Wrap screen bounds
+    if(player.x < -player.w) player.x = W;
+    if(player.x > W) player.x = -player.w;
+
+    // Gravity
+    player.vy += 0.35;
+    player.y += player.vy;
+
+    if(player.invuln > 0) player.invuln--;
+
+    // Camera follow (upwards only)
+    const targetCamY = H/2 - player.y;
+    if(targetCamY > cameraY) {
+        cameraY += (targetCamY - cameraY) * 0.1;
+        score = Math.floor(cameraY);
+    }
+
+    // Platform Collisions (Landing from above)
+    if(player.vy > 0) {
+        platforms.forEach(p => {
+            if(player.x + player.w > p.x && player.x < p.x + p.w &&
+               player.y + player.h >= p.y && player.y + player.h <= p.y + p.h + player.vy) {
+                
+                if(p.spike) {
+                    if(player.invuln <= 0) {
+                        player.hearts--;
+                        player.invuln = 40;
+                        player.vy = -6; // bounce off
+                        AudioSys.play('hurt');
+                        createParticles(player.x, player.y, '#e74c3c');
+                        if(player.hearts <= 0) triggerGameOver();
+                    }
+                } else {
+                    player.vy = -10.5; // Jump
+                    AudioSys.play('jump');
+                    createParticles(player.x, player.y + player.h, '#fff');
+                }
+            }
+        });
+    }
+
+    // Coins pickup
+    coinsList.forEach(c => {
+        if(!c.taken && player.x + player.w > c.x && player.x < c.x + c.w &&
+           player.y + player.h > c.y && player.y < c.y + c.h) {
+            c.taken = true;
+            coins++;
+            AudioSys.play('coin');
+            createParticles(c.x, c.y, '#f1c40f');
+        }
+    });
+
+    // Fall below screen death
+    if(player.y - cameraY > H + 50) {
+        triggerGameOver();
+    }
+
+    // Particles update
+    particles.forEach(pt => {
+        pt.x += pt.vx; pt.y += pt.vy; pt.life -= 0.05;
+    });
+
+    cleanupWorld();
+    updateHUD();
+}
+
+function createParticles(x, y, color) {
+    for(let i=0; i<6; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            life: 1, color: color
+        });
+    }
+}
+
+function triggerGameOver() {
+    state = 'GAME_OVER';
+    if(score > highScore) highScore = score;
+    saveData();
+    AudioSys.play('hurt');
+    document.getElementById('go-score').innerText = score;
+    document.getElementById('go-best').innerText = highScore;
+    switchState('GAME_OVER');
+}
+
+/* ==========================================================================
+   RENDERING
+   ========================================================================== */
+function render() {
+    const mapData = MAPS.find(m => m.id === selectedMap);
+    const birdData = BIRDS.find(b => b.id === selectedBird);
+
+    ctx.fillStyle = mapData.bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.translate(0, cameraY);
+
+    // Platforms
+    platforms.forEach(p => {
+        ctx.fillStyle = p.spike ? mapData.spike : mapData.plat;
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.w, p.h, 6);
+        ctx.fill();
+
+        if(p.spike) {
+            // Draw Spikes
+            ctx.fillStyle = '#111';
+            for(let sx = p.x + 4; sx < p.x + p.w - 4; sx += 12) {
+                ctx.beginPath();
+                ctx.moveTo(sx, p.y);
+                ctx.lineTo(sx + 5, p.y - 8);
+                ctx.lineTo(sx + 10, p.y);
+                ctx.fill();
+            }
+        }
+    });
+
+    // Coins
+    coinsList.forEach(c => {
+        if(!c.taken) {
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(c.x + 8, c.y + 8, 7, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
+    // Particles
+    particles.forEach(pt => {
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = pt.life;
+        ctx.fillRect(pt.x, pt.y, 4, 4);
+    });
+    ctx.globalAlpha = 1.0;
+
+    // Player (Bird)
+    if(state === 'PLAYING' || state === 'PAUSED') {
+        if(player.invuln % 4 < 2) {
+            ctx.fillStyle = birdData.color;
+            ctx.beginPath();
+            ctx.arc(player.x + 12, player.y + 12, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eye & Beak
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(player.x + (player.vx < 0 ? 6 : 18), player.y + 8, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(player.x + (player.vx < 0 ? 5 : 19), player.y + 8, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#e67e22';
+            ctx.beginPath();
+            ctx.arc(player.x + (player.vx < 0 ? -2 : 26), player.y + 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    ctx.restore();
+}
+
+function gameLoop() {
+    update();
+    render();
+    requestAnimationFrame(gameLoop);
+}
+
+/* ==========================================================================
+   UI & STATE MANAGEMENT
+   ========================================================================== */
+function updateHUD() {
+    document.getElementById('hud-hearts').innerText = '❤️ ' + player.hearts;
+    document.getElementById('hud-score').innerText = score;
+    document.getElementById('hud-coins').innerText = '🪙 ' + coins;
+}
+
+function switchState(newState) {
+    state = newState;
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('touch-controls').style.display = 'none';
+
+    if(state === 'MENU') {
+        document.getElementById('screen-menu').classList.add('active');
+    } else if(state === 'PLAYING') {
+        document.getElementById('hud').style.display = 'flex';
+        document.getElementById('touch-controls').style.display = 'flex';
+    } else if(state === 'PAUSED') {
+        document.getElementById('hud').style.display = 'flex';
+        document.getElementById('screen-pause').classList.add('active');
+    } else if(state === 'GAME_OVER') {
+        document.getElementById('screen-gameover').classList.add('active');
+    } else if(state === 'BIRDS') {
+        renderBirdsShop();
+        document.getElementById('screen-birds').classList.add('active');
+    } else if(state === 'MAPS') {
+        renderMapsMenu();
+        document.getElementById('screen-maps').classList.add('active');
+    } else if(state === 'HIGH_SCORE') {
+        document.getElementById('highscore-val').innerText = highScore;
+        document.getElementById('screen-highscore').classList.add('active');
+    }
+}
+
+function renderBirdsShop() {
+    document.getElementById('shop-coins').innerText = '🪙 ' + coins;
+    const grid = document.getElementById('birds-grid');
+    grid.innerHTML = '';
+
+    BIRDS.forEach(b => {
+        const isUnlocked = unlockedBirds.includes(b.id);
+        const isSelected = selectedBird === b.id;
+        const card = document.createElement('div');
+        card.className = `card ${isSelected ? 'selected' : ''} ${!isUnlocked ? 'locked' : ''}`;
+        card.innerHTML = `
+            <div class="card-title" style="color:${b.color}">${b.name}</div>
+            <div class="card-subtitle">❤️ ${b.hearts} Hearts</div>
+            <div>${isUnlocked ? (isSelected ? 'SELECTED' : 'SELECT') : '🪙 ' + b.cost}</div>
+        `;
+        card.onclick = () => {
+            AudioSys.play('click');
+            if(isUnlocked) {
+                selectedBird = b.id;
+                saveData();
+                renderBirdsShop();
+            } else if(coins >= b.cost) {
+                coins -= b.cost;
+                unlockedBirds.push(b.id);
+                selectedBird = b.id;
+                saveData();
+                renderBirdsShop();
+            }
+        };
+        grid.appendChild(card);
+    });
+}
+
+function renderMapsMenu() {
+    const grid = document.getElementById('maps-grid');
+    grid.innerHTML = '';
+
+    MAPS.forEach(m => {
+        const isUnlocked = unlockedMaps.includes(m.id);
+        const isSelected = selectedMap === m.id;
+        const card = document.createElement('div');
+        card.className = `card ${isSelected ? 'selected' : ''} ${!isUnlocked ? 'locked' : ''}`;
+        card.innerHTML = `
+            <div class="card-title">${m.name}</div>
+            <div>${isUnlocked ? (isSelected ? 'SELECTED' : 'SELECT') : '🪙 ' + m.cost}</div>
+        `;
+        card.onclick = () => {
+            AudioSys.play('click');
+            if(isUnlocked) {
+                selectedMap = m.id;
+                saveData();
+                renderMapsMenu();
+            } else if(coins >= m.cost) {
+                coins -= m.cost;
+                unlockedMaps.push(m.id);
+                selectedMap = m.id;
+                saveData();
+                renderMapsMenu();
+            }
+        };
+        grid.appendChild(card);
+    });
+}
+
+/* ==========================================================================
+   INPUT SYSTEM
+   ========================================================================== */
+function setupInput() {
+    // Keyboard
+    window.addEventListener('keydown', e => {
+        if(e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+        if(e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+    });
+    window.addEventListener('keyup', e => {
+        if(e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+        if(e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+    });
+
+    // Touch
+    const tLeft = document.getElementById('touch-left');
+    const tRight = document.getElementById('touch-right');
+
+    const handleTouch = (elem, keyState) => {
+        elem.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyState] = true; });
+        elem.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyState] = false; });
+    };
+    handleTouch(tLeft, 'left');
+    handleTouch(tRight, 'right');
+
+    // UI Buttons
+    document.getElementById('btn-play').onclick = () => { AudioSys.init(); AudioSys.play('click'); initGame(); switchState('PLAYING'); };
+    document.getElementById('btn-birds').onclick = () => { AudioSys.play('click'); switchState('BIRDS'); };
+    document.getElementById('btn-maps').onclick = () => { AudioSys.play('click'); switchState('MAPS'); };
+    document.getElementById('btn-highscore').onclick = () => { AudioSys.play('click'); switchState('HIGH_SCORE'); };
+    document.getElementById('btn-birds-back').onclick = () => { AudioSys.play('click'); switchState('MENU'); };
+    document.getElementById('btn-maps-back').onclick = () => { AudioSys.play('click'); switchState('MENU'); };
+    document.getElementById('btn-highscore-back').onclick = () => { AudioSys.play('click'); switchState('MENU'); };
+    
+    document.getElementById('btn-pause').onclick = () => { AudioSys.play('click'); switchState('PAUSED'); };
+    document.getElementById('btn-continue').onclick = () => { AudioSys.play('click'); switchState('PLAYING'); };
+    document.getElementById('btn-pause-menu').onclick = () => { AudioSys.play('click'); switchState('MENU'); };
+    
+    document.getElementById('btn-restart').onclick = () => { AudioSys.play('click'); initGame(); switchState('PLAYING'); };
+    document.getElementById('btn-go-menu').onclick = () => { AudioSys.play('click'); switchState('MENU'); };
+}
+
+/* ==========================================================================
+   INITIALIZATION
+   ========================================================================== */
+window.onload = () => {
+    resize();
+    loadData();
+    setupInput();
+    requestAnimationFrame(gameLoop);
+};
+</script>
+</body>
+</html>
+
